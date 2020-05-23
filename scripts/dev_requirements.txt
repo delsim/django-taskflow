@@ -1,0 +1,10 @@
+black
+coveralls
+grip
+pylint
+pytest
+pytest-django
+pytest-cov
+sphinx
+sphinx-autobuild
+twine

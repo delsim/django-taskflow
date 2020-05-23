@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#
+./scripts/test_demo
+./scripts/check_code_dtf
+./scripts/check_code_demo
