@@ -2,12 +2,18 @@ from django.db import models
 from django.db.models import Q, F
 
 from django.contrib import admin
+from django.urls import reverse
 from django.utils.text import slugify
+
+from .app_name import app_name
 
 
 class Workflow(models.Model):
     name = models.CharField(max_length=100, unique=False, blank=False)
     slug = models.SlugField(max_length=100, unique=True, blank=True)
+
+    def get_absolute_url(self):
+        return reverse(f"{app_name}:workflow", kwargs={'slug': self.slug})
 
     def __str__(self):
         return self.name

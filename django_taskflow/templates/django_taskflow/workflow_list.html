@@ -1,0 +1,13 @@
+{%extends "django_taskflow/base.html"%}
+
+{%block dtf_content%}
+<ul>
+  {%for obj in object_list%}
+  <li><a href="{{obj.get_absolute_url}}">{{obj}}</a></li>
+  {%endfor%}
+</ul>
+{%endblock%}
+
+{%block dtf_title%}
+Workflow list
+{%endblock%}
