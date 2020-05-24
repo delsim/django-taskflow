@@ -6,3 +6,10 @@ pip install -r scripts/requirements.txt
 pip install -r scripts/dev_requirements.txt
 #
 python setup.py develop
+#
+POSTGRES_VER=10.4-alpine
+docker pull postgres:$POSTGRES_VER
+docker build --build-arg DOCKER_VAR_POSTGRES=$POSTGRES_VER -t dtf-demo-db postgres
+#
+mkdir -p tmp
+mkdir -p tmp/data

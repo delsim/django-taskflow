@@ -38,7 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    'django_taskflow',
+    'django_taskflow.apps.DjangoTaskflowConfig',
 ]
 
 MIDDLEWARE = [
@@ -76,11 +76,23 @@ WSGI_APPLICATION = 'demo.wsgi.application'
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
 
 DATABASES = {
-    'default': {
+    'sqlite': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-    }
+    },
+    'postgres': {
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': 'dtftest',
+        'USER': 'dtftest',
+        'PASSWORD': 'dtftest',
+        'HOST': 'localhost',
+        'PORT': 5590,
+    },
 }
+
+
+DATABASES['default'] = DATABASES['sqlite']
+DATABASES['default'] = DATABASES['postgres']
 
 
 # Password validation
@@ -107,7 +119,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Vancouver'
 
 USE_I18N = True
 
