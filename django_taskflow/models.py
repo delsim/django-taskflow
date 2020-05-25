@@ -96,9 +96,10 @@ class ElementAdmin(admin.ModelAdmin):
     list_filter = ['is_initial', 'operation', 'workflow',]
 
 
-class Link(NameSlugBase):
+class Link(models.Model):
     source = models.ForeignKey(Element, blank=False, unique=False, null=False, on_delete=models.CASCADE, related_name="dtflow_link_source")
     target = models.ForeignKey(Element, blank=False, unique=False, null=False, on_delete=models.CASCADE, related_name="dtflow_link_target")
+    slug_name = models.SlugField(max_length=100, unique=False)
 
     def save(self, *args, **kwargs):
         if self.source.workflow != target.source.workflow:
@@ -107,7 +108,8 @@ class Link(NameSlugBase):
 
 
 class LinkAdmin(admin.ModelAdmin):
-    list_display = ['source', 'target', 'name', 'slug']
+    list_display = ['source', 'target', 'slug_name', ]
+    list_filter = ['slug_name', ]
 
 
 class Ticket(models.Model):
@@ -128,6 +130,10 @@ class TicketAdmin(admin.ModelAdmin):
 
 
 class Task(models.Model):
+    """The current task for a ticket.
+
+    The ticket is in the current element, and processing has been paused within the element.
+    """
     ticket = models.ForeignKey(Ticket, blank=False, unique=False, on_delete=models.CASCADE)
     element = models.ForeignKey(Element, blank=False, unique=False, on_delete=models.CASCADE)
     creation = models.DateTimeField(auto_now_add=True)
