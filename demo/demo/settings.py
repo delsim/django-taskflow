@@ -76,10 +76,10 @@ WSGI_APPLICATION = 'demo.wsgi.application'
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
 
 DATABASES = {
-    'sqlite': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-    },
+    #'sqlite': {
+    #    'ENGINE': 'django.db.backends.sqlite3',
+    #    'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+    #},
     'postgres': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'NAME': 'dtftest',
@@ -91,7 +91,6 @@ DATABASES = {
 }
 
 
-DATABASES['default'] = DATABASES['sqlite']
 DATABASES['default'] = DATABASES['postgres']
 
 
