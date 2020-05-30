@@ -48,6 +48,11 @@ class Operation(NameSlugBase):
         mod_name = ".".join(name_parts[:-1])
         module = importlib.import_module(mod_name)
         func = getattr(module, name_parts[-1])
+        try:
+            # If a class, then instantiate it
+            func = func()
+        except:
+            pass
         return func
 
 
@@ -116,8 +121,6 @@ class Element(models.Model):
         current element of a ticket.
         """
         if task.status == task.Status.FINISHED or task.status== task.Status.TERMINATED:
-            return None
-
             return None
 
         func = self.operation.function_as_callable()

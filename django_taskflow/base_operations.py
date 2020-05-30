@@ -9,13 +9,13 @@ _OPERATIONS = [
         'name': '__init',
         'slug': '__init',
         'description': 'Task initialisation at the beginning of a ticket process',
-        'function': 'django_taskflow.operations.init',
+        'function': 'django_taskflow.operations.Init',
     },
     {
         'name': 'script',
         'slug': 'script',
         'description': 'Run a processing step',
-        'function': 'django_taskflow.operations.script',
+        'function': 'django_taskflow.operations.Script',
     },
 ]
 

@@ -1,7 +1,7 @@
 import pytest
 
 
-from django_taskflow.models import Operation
+from django_taskflow.models import Operation, Task
 
 
 def some_function(x, y):
@@ -20,3 +20,10 @@ def test_operation():
 
     assert f(1, 2) == 3
 
+
+def test_task_types():
+    t = Task()
+    print(t.status.__class__)
+    print(t.status.label)
+    for p in Task.Status.labels:
+        print(p)
