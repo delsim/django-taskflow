@@ -32,6 +32,7 @@ ALLOWED_HOSTS = []
 
 INSTALLED_APPS = [
     'django.contrib.admin',
+    'django.contrib.admindocs',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -80,7 +81,7 @@ DATABASES = {
     #    'ENGINE': 'django.db.backends.sqlite3',
     #    'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
     #},
-    'postgres': {
+    'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'NAME': 'dtftest',
         'USER': 'dtftest',
@@ -90,8 +91,6 @@ DATABASES = {
     },
 }
 
-
-DATABASES['default'] = DATABASES['postgres']
 
 
 # Password validation
