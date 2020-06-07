@@ -19,15 +19,12 @@ def test_create_ticket(django_user_model):
     assert t is not None
     assert isinstance(t, Ticket)
 
-    t.save()
-
     tasks = Task.objects.filter(ticket=t)
     assert tasks.count() == 0
 
     task_1 = t.run_workflow(context)
     assert task_1 is not None
 
-    task_1.save()
     t.last_check = datetime.now()
     t.last_checkor = context['user']
 

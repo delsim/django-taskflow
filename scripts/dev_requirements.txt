@@ -1,5 +1,6 @@
 black
 coveralls
+django-debug-toolbar
 grip
 pylint
 pytest

@@ -27,7 +27,7 @@ setup(
     classifiers = [
     'Development Status :: 3 - Alpha',
     'Intended Audience :: Developers',
-    'License :: OSI Approved :: MIT License',
+    'License :: OSI Approved :: AGPL License',
     'Programming Language :: Python :: 3',
     ],
     keywords='django taskflow workflow',
@@ -36,7 +36,9 @@ setup(
     'Tracker': "https://github.com/GibbsConsulting/django-taskflow/issues",
     'Documentation': 'http://django-taskflow.readthedocs.io/',
     },
-    install_requires = ['Django>=2',],
+    install_requires = ['Django>=2',
+                        'djangorestframework',
+                        ],
     python_requires=">=3.7",
     )
 

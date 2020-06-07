@@ -12,10 +12,16 @@ _OPERATIONS = [
         'function': 'django_taskflow.operations.Init',
     },
     {
-        'name': 'script',
+        'name': 'Script',
         'slug': 'script',
         'description': 'Run a processing step',
         'function': 'django_taskflow.operations.Script',
+    },
+    {
+        'name': 'External Task',
+        'slug': 'external-task',
+        'description': 'External processing step',
+        'function': 'django_taskflow.operations.ExternalTask',
     },
 ]
 

@@ -3,7 +3,7 @@ import importlib
 import datetime
 
 from django.db import models
-from django.db.models import Q, F
+from django.db.models import Q, F, OuterRef, Max, Subquery
 
 from django.conf import settings
 from django.contrib import admin
@@ -41,13 +41,17 @@ class Operation(NameSlugBase):
     function = models.CharField(max_length=100, unique=False, blank=False, null=False)
     description = models.TextField()
 
+    @staticmethod
+    def load_object_by_name(name):
+        name_parts = name.split('.')
+        mod_name = ".".join(name_parts[:-1])
+        module = importlib.import_module(mod_name)
+        return getattr(module, name_parts[-1])
+
     def function_as_callable(self):
         """Get the task processing function for this operation"""
 
-        name_parts = self.function.split('.')
-        mod_name = ".".join(name_parts[:-1])
-        module = importlib.import_module(mod_name)
-        func = getattr(module, name_parts[-1])
+        func = Operation.load_object_by_name(self.function)
         try:
             # If a class, then instantiate it
             func = func()
@@ -66,6 +70,9 @@ class Workflow(NameSlugBase):
     def get_absolute_url(self):
         return reverse(f"{app_name}:workflow", kwargs={'slug': self.slug})
 
+    def get_new_ticket_url(self):
+        return reverse(f"{app_name}:initiate_workflow", kwargs={'slug': self.slug})
+
     @staticmethod
     def request_context(request):
         """Form a context from the curent request."""
@@ -76,6 +83,11 @@ class Workflow(NameSlugBase):
     def create_ticket(self, context):
         t = Ticket(workflow=self,
                    creator=context['user'])
+        t.save()
+
+        if 'initial_arguments' in context:
+            # Perform init step on the ticket
+            t.run_workflow_step(context)
         return t
 
 
@@ -86,7 +98,6 @@ class WorkflowAdmin(admin.ModelAdmin):
         for q in queryset.all():
             context = Workflow.request_context(request)
             ticket = q.create_ticket(context)
-            ticket.save()
             ticket.run_workflow_step(context)
 
     create_ticket.short_description = "Create a new ticket"
@@ -124,9 +135,15 @@ class Element(models.Model):
             return None
 
         func = self.operation.function_as_callable()
-        new_task = func(incoming_task=task,
-                        element=self,
-                        context=context)
+        try:
+            new_task = func(incoming_task=task,
+                            element=self,
+                            context=context)
+        except Exception as e:
+            new_task = task.clone_task(context)
+            new_task.status = task.Status.ERROR
+            new_task.state = {'state': task.state,
+                              'error': str(e)}
 
         if new_task is None:
             if task.status == task.Status.COMPLETED or task.status== task.Status.ERROR:
@@ -134,7 +151,7 @@ class Element(models.Model):
                 if task.status == task.Status.COMPLETED:
                     new_task.status = task.Status.FINISHED
                 else:
-                    new_task.status = task.status.TERMINATED
+                    new_task.status = task.Status.TERMINATED
 
         return new_task
 
@@ -168,6 +185,9 @@ class Ticket(models.Model):
     last_check = models.DateTimeField(null=True, blank=True, unique=False)
     last_checkor = models.ForeignKey(User, blank=True, unique=False, null=True, on_delete=models.CASCADE, related_name="creator")
 
+    def get_absolute_url(self):
+        return reverse('taskflow:ticket', kwargs={'pk': self.pk})
+
     def run_workflow_step(self, context):
         """Run a single workflow step on this ticket.
 
@@ -179,7 +199,7 @@ class Ticket(models.Model):
                                           is_initial=True)
             pre_task = Task(ticket=self,
                             element=element,
-                            state={},
+                            state=context.get('initial_arguments',{}),
                             creator=context['user'])
         else:
             # Not a brand-new ticket
@@ -216,14 +236,26 @@ class TicketAdmin(admin.ModelAdmin):
     list_display = ['workflow', 'creation', 'creator', 'last_check', 'last_checkor']
     list_filter = ['last_check', 'creation', 'workflow', 'creator', 'last_checkor']
 
-    def run_single_workflow_step(self, request, queryset):
+    def run_workflow_step(self, request, queryset):
+        context = Workflow.request_context(request)
         for q in queryset.all():
-            context = Workflow.request_context(request)
+            t = q.run_workflow_step(context)
+            if t is not None:
+                t.save()
+                q.last_checkor = context['user']
+                q.last_check = now()
+                q.save()
+
+    run_workflow_step.short_description = 'Run workflow step on ticket and save the resultant task'
+
+    def run_workflow(self, request, queryset):
+        context = Workflow.request_context(request)
+        for q in queryset.all():
             q.run_workflow(context)
 
-    run_single_workflow_step.short_description = 'Run a single workflow step and save the resultant task'
+    run_workflow.short_description = 'Run workflow on ticket and save the resultant task'
 
-    actions = [run_single_workflow_step, ]
+    actions = [run_workflow, run_workflow_step, ]
 
 
 class Task(models.Model):
@@ -265,6 +297,19 @@ class Task(models.Model):
     def __str__(self):
         return f"{self.ticket}:{self.element}:{self.creation}"
 
+    @classmethod
+    def latest_tasks(cls, exclude_finished=True):
+        sub_query = cls.objects.filter(ticket=OuterRef('ticket')).values('ticket').annotate(max_creation=Max('creation')).values_list('max_creation')
+        qs = cls.objects.filter(creation=Subquery(sub_query))
+
+        if exclude_finished:
+            qs = qs.filter(~Q(status=Task.Status.FINISHED),
+                           ~Q(status=Task.Status.TERMINATED))
+        return qs
+
+    def get_absolute_url(self):
+        return reverse('taskflow:task', kwargs={'pk': self.pk})
+
     class Meta:
         constraints = [#models.CheckConstraint(check=Q(ticket__workflow=F('element__workflow')),
                        #                       name='workflow_element_ticket_equal'),
@@ -276,3 +321,24 @@ class Task(models.Model):
 class TaskAdmin(admin.ModelAdmin):
     list_display = ['ticket', 'element', 'creation', 'creator', 'status',]
     list_filter = ['status', 'creation', 'creator',]
+
+    def run_task_step(self, request, queryset):
+        context = Workflow.request_context(request)
+        for q in queryset.all():
+            t = q.ticket.run_workflow_step(context)
+            if t is not None:
+                t.save()
+                q.ticket.last_checkor = context['user']
+                q.ticket.last_check = now()
+                q.ticket.save()
+
+    run_task_step.short_description = "Run next workflow step on ticket associated with task"
+
+    def run_task(self, request, queryset):
+        context = Workflow.request_context(request)
+        for q in queryset.all():
+            q.ticket.run_workflow(context)
+
+    run_task.short_description = "Run workflow for ticket associated with task"
+
+    actions = [run_task_step, run_task, ]

@@ -3,7 +3,7 @@
 {%block dtf_content%}
 <ul>
   {%for obj in object_list%}
-  <li><a href="{{obj.get_absolute_url}}">{{obj}}</a></li>
+  <li><a href="{{obj.get_absolute_url}}">{{obj}}</a> <a href="{{obj.get_new_ticket_url}}">Launch Ticket</a></li>
   {%endfor%}
 </ul>
 {%endblock%}
