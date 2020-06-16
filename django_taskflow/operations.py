@@ -1,10 +1,11 @@
 """Standard operations"""
 
 
-from .models import Task, Operation
+from abc import ABC, abstractmethod
+from .models import Task, Operation, OperatorTask
 
 
-class OpBase:
+class OpBase(ABC):
     """Base classs for operations, providing methods through dispatch"""
 
     def __call__(self, incoming_task, element, context):
@@ -102,37 +103,58 @@ class Script(OpBase):
         return task
 
 
-class ExternalTask(OpBase):
+class ExternalTaskBase(OpBase):
     """An external task, that pauses progress until resolved."""
 
     def default_operation(self, incoming_task, element, context):
-        print("External default")
+        print("External default reached default operation - this should not happen")
         return None
 
+    @abstractmethod
     def operate_New(self, incoming_task, element, context):
-        print("External new")
-        # Move new task into waiting state, set up other db entries as needed
-        pass
+        raise NotImplementedError("External task must provide implementation for a new task")
 
     def operate_Waiting(self, incoming_task, element, context):
-        print("External waiting")
         # Do nothing; moving to updated will happen once the external task is processed
         return None
 
+    @abstractmethod
     def operate_Updated(self, incoming_task, element, context):
-        print("External updated")
-        # Task might have external update; if so process and return a completed task
-        pass
+        raise NotImplementedError("External task must provide implementation for checking and progressing a task")
 
     def operate_Error(self, incoming_task, element, context):
         self.cleanup_task(incoming_task, element, context)
-        # unless error is handled elsewhere, return None to move to final state
         return None
 
     def operate_Completed(self, incoming_task, element, context):
-        print("External completed")
         # Clean up additional db entries and move to next state")
         self.cleanup_task(incoming_task, element, context)
 
+    @abstractmethod
+    def cleanup_task(self, incoming_task, element, context):
+        # Cleanup anything created by this task. Implementations must be idempotent
+        raise NotImplementedError("External task must provide implementation for cleanup")
+
+
+class OperatorExternalTask(ExternalTaskBase):
+    # External task that will be acted on by an operator
+
+    def operate_New(self, incoming_task, element, context):
+        # Create operator task, and change this task to WAITING
+        operator_task = OperatorTask(ticket=incoming_task.ticket,
+                                     operator=context['user'],
+                                     element=incoming_task.element)
+        operator_task.save()
+        new_task = incoming_task.clone_task(context)
+        new_task.status = Task.Status.WAITING
+        return new_task
+
+    def operate_Updated(self, incoming_task, element, context):
+        # Move to completed
+        new_task = incoming_task.clone_task(context)
+        new_task.status = Task.Status.COMPLETED
+        return new_task
+
     def cleanup_task(self, incoming_task, element, context):
         pass
+

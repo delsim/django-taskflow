@@ -21,7 +21,7 @@ _OPERATIONS = [
         'name': 'External Task',
         'slug': 'external-task',
         'description': 'External processing step',
-        'function': 'django_taskflow.operations.ExternalTask',
+        'function': 'django_taskflow.operations.OperatorExternalTask',
     },
 ]
 

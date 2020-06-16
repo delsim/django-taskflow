@@ -9,4 +9,4 @@ def test_simple_workflow(django_user_model):
                }
 
 
-    
+

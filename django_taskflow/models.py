@@ -74,6 +74,13 @@ class Workflow(NameSlugBase):
         return reverse(f"{app_name}:initiate_workflow", kwargs={'slug': self.slug})
 
     @staticmethod
+    def user_context(user):
+        """Form a context from just user info"""
+        context = {'user': user,
+                   }
+        return context
+
+    @staticmethod
     def request_context(request):
         """Form a context from the curent request."""
         context = {'user': request.user,
@@ -258,6 +265,23 @@ class TicketAdmin(admin.ModelAdmin):
     actions = [run_workflow, run_workflow_step, ]
 
 
+class Step(models.Model):
+    """Step in processing of a ticket"""
+    ticket = models.ForeignKey(Ticket, blank=False, unique=False, on_delete=models.CASCADE)
+    element = models.ForeignKey(Element, blank=False, unique=False, on_delete=models.CASCADE)
+    creation = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['ticket', 'element', 'creation'],
+                                               name='workflow_step_uniqueness'),
+                       ]
+
+
+class StepAdmin(admin.ModelAdmin):
+    list_display = ['ticket', 'element', 'creation']
+    list_filter = ['filter', 'element', ]
+
+
 class Task(models.Model):
     """The current task for a ticket.
 
@@ -342,3 +366,54 @@ class TaskAdmin(admin.ModelAdmin):
     run_task.short_description = "Run workflow for ticket associated with task"
 
     actions = [run_task_step, run_task, ]
+
+
+class OperatorTask(models.Model):
+    """Task requiring operator intervention"""
+    ticket = models.OneToOneField(Ticket, on_delete=models.CASCADE)
+    element = models.OneToOneField(Element, on_delete=models.CASCADE)
+    created = models.DateTimeField(auto_now_add=True)
+    completed = models.DateTimeField(null=True, blank=True, unique=False)
+    operator = models.ForeignKey(User, blank=False, unique=False, null=False, on_delete=models.CASCADE)
+
+    def progress_task(self):
+        """Set state to done."""
+        if self.completed is None:
+            self.completed = datetime.datetime.now()
+            self.save()
+
+    def save(self, *args, **kwargs):
+        ret = super().save(*args, **kwargs)
+        if self.completed is not None:
+            self.check_completed_tasks(Workflow.user_context(self.operator))
+        return ret
+
+    @staticmethod
+    def check_completed_tasks(context):
+        """Check all operator tasks for completed state that are still waiting"""
+        comp_tasks = Task.latest_tasks().filter(status=Task.Status.WAITING)
+
+        op_tasks = OperatorTask.objects.filter(ticket__task__in=comp_tasks,
+                                               ticket__task__element=F('element'))
+
+        for op_task in op_tasks:
+            task = comp_tasks.get(ticket=op_task.ticket,
+                                  element=op_task.element)
+            new_task = task.clone_task(context)
+            new_task.status = Task.Status.UPDATED
+            new_task.save()
+
+
+class OperatorTaskAdmin(admin.ModelAdmin):
+    list_filter = ['created', 'completed', 'operator', 'element', ]
+    list_display = ['ticket', 'element', 'created', 'completed', 'operator', ]
+
+    def progress_task(self, request, queryset):
+        context = Workflow.request_context(request)
+        for q in queryset.all():
+            q.progress_task()
+            q.save()
+
+    progress_task.short_description = "Progress operator task"
+
+    actions = [progress_task, ]
