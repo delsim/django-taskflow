@@ -5,6 +5,7 @@ from .app_name import app_name
 
 from .views import WorkflowListView, WorkflowDetailView, element_view, TicketListView, TicketDetailView, TaskDetailView
 from .views import TaskListView, LiveTaskListView, AllTaskListView
+from .views import OperatorTaskListView
 
 from .views import update_ticket, start_ticket
 
@@ -23,4 +24,6 @@ urlpatterns = [
     path('full_task_list/', TaskListView.as_view(), name="full_task_list"),
     path('all_tasks/', AllTaskListView.as_view(), name="all_tasks"),
     path('live_tasks/', LiveTaskListView.as_view(), name="live_tasks"),
+
+    path('operator_tasks/', OperatorTaskListView.as_view(), name="operator_tasks"),
 ]

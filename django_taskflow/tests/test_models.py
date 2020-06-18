@@ -19,7 +19,7 @@ def test_create_ticket(django_user_model):
     assert t is not None
     assert isinstance(t, Ticket)
 
-    tasks = Task.objects.filter(ticket=t)
+    tasks = Task.objects.filter(step__ticket=t)
     assert tasks.count() == 0
 
     task_1 = t.run_workflow(context)
@@ -28,7 +28,7 @@ def test_create_ticket(django_user_model):
     t.last_check = datetime.now()
     t.last_checkor = context['user']
 
-    tasks = Task.objects.filter(ticket=t).order_by('-creation')
+    tasks = Task.objects.filter(step__ticket=t).order_by('-creation')
     assert tasks.count() == 2
 
     task = tasks[0]

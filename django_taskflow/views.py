@@ -4,7 +4,7 @@ from django.views.generic import ListView, DetailView
 
 from rest_framework.parsers import JSONParser
 
-from .models import Workflow, Element, Ticket, Task
+from .models import Workflow, Element, Ticket, Task, OperatorTask
 
 
 class WorkflowListView(ListView):
@@ -66,3 +66,8 @@ def start_ticket(request, slug=None):
                          'data': data,
                          'ticket': t.pk},
                         status=200)
+
+
+class OperatorTaskListView(ListView):
+
+    model = OperatorTask

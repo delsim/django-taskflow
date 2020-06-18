@@ -1,0 +1,14 @@
+{%extends "django_taskflow/base.html"%}
+
+{%block dtf_content%}
+<ul>
+  {%for operator_task in object_list%}
+  <li>{{operator_task}}</li>
+  <li><a href="{{ticket.get_absolute_url}}">{{ticket}}</a></li>
+  {%endfor%}
+</ul>
+{%endblock%}
+
+{%block dtf_title%}
+Operator tasks
+{%endblock%}

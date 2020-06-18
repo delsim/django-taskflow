@@ -57,7 +57,7 @@ def add_examples(apps, schema_editor):
 
 
 def remove_examples(apps, schema_editor):
-    model_names = ['Workflow', 'Element', 'Link',]
+    model_names = ['OperatorTask', 'Task', 'Step', 'Workflow', 'Element', 'Link',]
     for model_name in model_names:
         model = apps.get_model('django_taskflow', model_name)
         for obj in model.objects.all():

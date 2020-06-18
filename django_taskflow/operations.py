@@ -2,7 +2,7 @@
 
 
 from abc import ABC, abstractmethod
-from .models import Task, Operation, OperatorTask
+from .models import Task, Operation, OperatorTask, Step
 
 
 class OpBase(ABC):
@@ -38,7 +38,7 @@ class OpBase(ABC):
         """Move to next element"""
         task = self.move_to_next(element, "next", incoming_task, context)
 
-        if task and task.element is None:
+        if task and (task.step is None or task.step.element is None):
             return self.enter_error_state(incoming_task, context, "Default operation on task unable to move to next task")
 
         return task
@@ -61,7 +61,12 @@ class OpBase(ABC):
         task = incoming_task.clone_task(context)
         for link in targets:
             if link.slug_name == slug_name:
-                task.element = link.target
+                if link.target != task.step.element:
+                    step = Step(ticket=task.step.ticket,
+                                element=link.target)
+                    step.save()
+                    task.step = step
+
         return task
 
 
@@ -141,9 +146,8 @@ class OperatorExternalTask(ExternalTaskBase):
 
     def operate_New(self, incoming_task, element, context):
         # Create operator task, and change this task to WAITING
-        operator_task = OperatorTask(ticket=incoming_task.ticket,
-                                     operator=context['user'],
-                                     element=incoming_task.element)
+        operator_task = OperatorTask(step=incoming_task.step,
+                                     operator=context['user'])
         operator_task.save()
         new_task = incoming_task.clone_task(context)
         new_task.status = Task.Status.WAITING

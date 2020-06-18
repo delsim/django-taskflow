@@ -147,6 +147,10 @@ class Element(models.Model):
                             element=self,
                             context=context)
         except Exception as e:
+            print("Handling exception :", e)
+            print(e.args)
+            import traceback
+            traceback.print_exc()
             new_task = task.clone_task(context)
             new_task.status = task.Status.ERROR
             new_task.state = {'state': task.state,
@@ -204,14 +208,23 @@ class Ticket(models.Model):
             # Never run on this one before
             element = Element.objects.get(workflow=self.workflow,
                                           is_initial=True)
-            pre_task = Task(ticket=self,
-                            element=element,
+
+            steps = Step.objects.filter(element=element,
+                                       ticket=self)
+            if steps.count() == 0:
+                step = Step(ticket=self,
+                            element=element)
+                step.save()
+            else:
+                step = steps[0]
+
+            pre_task = Task(step=step,
                             state=context.get('initial_arguments',{}),
                             creator=context['user'])
         else:
             # Not a brand-new ticket
-            pre_task = Task.objects.filter(ticket=self).order_by('-creation')[0]
-            element = pre_task.element
+            pre_task = Task.objects.filter(step__ticket=self).order_by('-creation')[0]
+            element = pre_task.step.element
 
         task = element.process_task(pre_task, context)
 
@@ -271,6 +284,9 @@ class Step(models.Model):
     element = models.ForeignKey(Element, blank=False, unique=False, on_delete=models.CASCADE)
     creation = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return f"S-{self.pk}:{self.ticket}:{self.element}:{self.creation}"
+
     class Meta:
         constraints = [models.UniqueConstraint(fields=['ticket', 'element', 'creation'],
                                                name='workflow_step_uniqueness'),
@@ -279,7 +295,7 @@ class Step(models.Model):
 
 class StepAdmin(admin.ModelAdmin):
     list_display = ['ticket', 'element', 'creation']
-    list_filter = ['filter', 'element', ]
+    list_filter = ['creation', 'element', ]
 
 
 class Task(models.Model):
@@ -297,8 +313,7 @@ class Task(models.Model):
         FINISHED = 5
         TERMINATED = 6
 
-    ticket = models.ForeignKey(Ticket, blank=False, unique=False, on_delete=models.CASCADE)
-    element = models.ForeignKey(Element, blank=False, unique=False, on_delete=models.CASCADE)
+    step = models.ForeignKey(Step, blank=False, unique=False, on_delete=models.CASCADE)
     creation = models.DateTimeField(auto_now_add=True)
     state = JSONField(null=False, blank=False, unique=False)
     creator = models.ForeignKey(User, blank=False, unique=False, null=False, on_delete=models.CASCADE)
@@ -306,24 +321,16 @@ class Task(models.Model):
                                               default=Status.NEW)
 
     def clone_task(self, context):
-        return Task(ticket=self.ticket,
-                    element=self.element,
+        return Task(step=self.step,
                     state=self.state,
                     creator=context['user'])
 
-    @staticmethod
-    def empty_task(ticket, element, user):
-        return Task(ticket=ticket,
-                    element=element,
-                    state={},
-                    creator=user)
-
     def __str__(self):
-        return f"{self.ticket}:{self.element}:{self.creation}"
+        return f"{self.step}:{self.creation}"
 
     @classmethod
     def latest_tasks(cls, exclude_finished=True):
-        sub_query = cls.objects.filter(ticket=OuterRef('ticket')).values('ticket').annotate(max_creation=Max('creation')).values_list('max_creation')
+        sub_query = cls.objects.filter(step__ticket=OuterRef('step__ticket')).values('step__ticket').annotate(max_creation=Max('creation')).values_list('max_creation')
         qs = cls.objects.filter(creation=Subquery(sub_query))
 
         if exclude_finished:
@@ -337,31 +344,31 @@ class Task(models.Model):
     class Meta:
         constraints = [#models.CheckConstraint(check=Q(ticket__workflow=F('element__workflow')),
                        #                       name='workflow_element_ticket_equal'),
-                       models.UniqueConstraint(fields=['ticket', 'creation'],
+                       models.UniqueConstraint(fields=['step', 'creation'],
                                                name='workflow_task_uniqueness'),
                        ]
 
 
 class TaskAdmin(admin.ModelAdmin):
-    list_display = ['ticket', 'element', 'creation', 'creator', 'status',]
+    list_display = ['step', 'creation', 'creator', 'status',]
     list_filter = ['status', 'creation', 'creator',]
 
     def run_task_step(self, request, queryset):
         context = Workflow.request_context(request)
         for q in queryset.all():
-            t = q.ticket.run_workflow_step(context)
+            t = q.step.ticket.run_workflow_step(context)
             if t is not None:
                 t.save()
-                q.ticket.last_checkor = context['user']
-                q.ticket.last_check = now()
-                q.ticket.save()
+                q.step.ticket.last_checkor = context['user']
+                q.step.ticket.last_check = now()
+                q.step.ticket.save()
 
     run_task_step.short_description = "Run next workflow step on ticket associated with task"
 
     def run_task(self, request, queryset):
         context = Workflow.request_context(request)
         for q in queryset.all():
-            q.ticket.run_workflow(context)
+            q.step.ticket.run_workflow(context)
 
     run_task.short_description = "Run workflow for ticket associated with task"
 
@@ -370,8 +377,7 @@ class TaskAdmin(admin.ModelAdmin):
 
 class OperatorTask(models.Model):
     """Task requiring operator intervention"""
-    ticket = models.OneToOneField(Ticket, on_delete=models.CASCADE)
-    element = models.OneToOneField(Element, on_delete=models.CASCADE)
+    step = models.ForeignKey(Step, blank=False, unique=False, on_delete=models.CASCADE)
     created = models.DateTimeField(auto_now_add=True)
     completed = models.DateTimeField(null=True, blank=True, unique=False)
     operator = models.ForeignKey(User, blank=False, unique=False, null=False, on_delete=models.CASCADE)
@@ -385,28 +391,25 @@ class OperatorTask(models.Model):
     def save(self, *args, **kwargs):
         ret = super().save(*args, **kwargs)
         if self.completed is not None:
-            self.check_completed_tasks(Workflow.user_context(self.operator))
+            self.check_completed_task(Workflow.user_context(self.operator))
         return ret
 
-    @staticmethod
-    def check_completed_tasks(context):
+    def check_completed_task(self, context):
         """Check all operator tasks for completed state that are still waiting"""
-        comp_tasks = Task.latest_tasks().filter(status=Task.Status.WAITING)
+        if self.completed is None:
+            return
+        comp_tasks = Task.latest_tasks().filter(status=Task.Status.WAITING,
+                                                step=self.step)
 
-        op_tasks = OperatorTask.objects.filter(ticket__task__in=comp_tasks,
-                                               ticket__task__element=F('element'))
-
-        for op_task in op_tasks:
-            task = comp_tasks.get(ticket=op_task.ticket,
-                                  element=op_task.element)
+        for task in comp_tasks:
             new_task = task.clone_task(context)
             new_task.status = Task.Status.UPDATED
             new_task.save()
 
 
 class OperatorTaskAdmin(admin.ModelAdmin):
-    list_filter = ['created', 'completed', 'operator', 'element', ]
-    list_display = ['ticket', 'element', 'created', 'completed', 'operator', ]
+    list_filter = ['created', 'completed', 'operator', ]
+    list_display = ['step', 'created', 'completed', 'operator', ]
 
     def progress_task(self, request, queryset):
         context = Workflow.request_context(request)
