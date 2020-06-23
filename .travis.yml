@@ -3,7 +3,7 @@ dist: xenial
 language: python
 
 python:
-  - "3.6"
+  - "3.7"
 
 cache:
   - pip
@@ -19,9 +19,9 @@ services:
 script:
   - pushd demo
   - pytest demo --cov=demo --cov=django_taskflow --cov-report term-missing
-  - pylint demo --rcfile=../pylintrc
-  - popd
-  - pylint django_taskflow
+#  - pylint demo --rcfile=../pylintrc
+#  - popd
+#  - pylint django_taskflow
 
 after_success:
   - coveralls
