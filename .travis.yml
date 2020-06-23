@@ -15,13 +15,15 @@ install:
 
 services:
   - redis-server
+  - postgresql
+
+before-script:
+  -c psql "CREATE DATABASE dtftest;" -U postgres
+  -c psql "CREATE USER dtftest with PASSWORD 'dtftest';" -U postgres
 
 script:
   - pushd demo
   - pytest demo --cov=demo --cov=django_taskflow --cov-report term-missing
-#  - pylint demo --rcfile=../pylintrc
-#  - popd
-#  - pylint django_taskflow
 
 after_success:
   - coveralls
