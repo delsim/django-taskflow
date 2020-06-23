@@ -38,6 +38,7 @@ setup(
     },
     install_requires = ['Django>=2',
                         'djangorestframework',
+                        'psycopg2',
                         ],
     python_requires=">=3.7",
     )

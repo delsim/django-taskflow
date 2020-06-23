@@ -3,9 +3,10 @@ coveralls
 django-debug-toolbar
 grip
 pylint
-pytest
+pytest>=4.6
 pytest-django
 pytest-cov
+python-coveralls
 sphinx
 sphinx-autobuild
 sphinx_rtd_theme
