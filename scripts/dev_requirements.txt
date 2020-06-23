@@ -6,6 +6,7 @@ pylint
 pytest
 pytest-django
 pytest-cov
+python-coveralls
 sphinx
 sphinx-autobuild
 sphinx_rtd_theme
