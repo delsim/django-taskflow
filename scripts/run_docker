@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+#
+docker run -d -p 5590:5432 -v ${PWD}/tmp/data/pg:/var/lib/postgresql/data/pgdata dtf-demo-db

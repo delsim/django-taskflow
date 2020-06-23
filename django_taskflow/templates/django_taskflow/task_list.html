@@ -1,0 +1,13 @@
+{%extends "django_taskflow/base.html"%}
+
+{%block dtf_content%}
+<ul>
+{%for task in object_list%}
+  <li><a href="{{task.get_absolute_url}}">{{task}}</a> STATUS {{task.status}} CREATION {{task.creation}} {{task.creator}}</li>
+{%endfor%}
+</ul>
+{%endblock%}
+
+{%block dtf_title%}
+Tasks
+{%endblock%}
