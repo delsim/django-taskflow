@@ -18,8 +18,8 @@ services:
   - postgresql
 
 before-script:
-  - psql -c "CREATE DATABASE dtftest;" -U postgres
-  - psql -c "CREATE USER dtftest with PASSWORD 'dtftest';" -U postgres
+  - psql -c 'CREATE DATABASE dtftest;' -U postgres
+  - psql -c 'CREATE USER dtftest with PASSWORD "dtftest";' -U postgres
 
 script:
   - pushd demo
