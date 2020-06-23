@@ -13,12 +13,7 @@ Simple task worflow within Django.
 
    introduction
    installation
+   workflows
+   operations
 
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
 * :ref:`search`
