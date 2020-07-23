@@ -55,6 +55,25 @@ def add_examples(apps, schema_editor):
 
     l223.save()
 
+    wf3 = Workflow(name="SingleCall",
+                   slug="single-call")
+    wf3.save()
+    el31 = Element(workflow=wf3,
+                   operation=op,
+                   op_params={},
+                   slug_name="start",
+                   is_initial=True)
+    el31.save()
+    el32 = Element(workflow=wf3,
+                   operation=ops,
+                   op_params={'script_name': 'django_taskflow.example_data.'},
+                   slug_name="single_call")
+    el32.save()
+    l312 = Link(source=el31,
+                target=el32,
+                slug_name="next")
+    l312.save()
+
 
 def remove_examples(apps, schema_editor):
     model_names = ['OperatorTask', 'Task', 'Step', 'Workflow', 'Element', 'Link',]

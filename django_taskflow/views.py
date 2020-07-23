@@ -60,6 +60,9 @@ def start_ticket(request, slug=None):
     if request.method == 'POST':
         data = JSONParser().parse(request)
 
+    data['user'] = {'username': request.user.username,
+                    'id': request.user.pk,
+                    }
     t = workflow.create_ticket(context)
 
     return JsonResponse({'some': 'stuff',
